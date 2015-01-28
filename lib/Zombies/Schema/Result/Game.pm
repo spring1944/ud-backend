@@ -86,9 +86,23 @@ __PACKAGE__->add_columns(
 
 __PACKAGE__->set_primary_key("id");
 
+=head1 UNIQUE CONSTRAINTS
 
-# Created by DBIx::Class::Schema::Loader v0.07042 @ 2015-01-27 23:47:30
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:bVLX2Zd1x0oc5elogLhnlA
+=head2 C<spring_id_unique>
+
+=over 4
+
+=item * L</spring_id>
+
+=back
+
+=cut
+
+__PACKAGE__->add_unique_constraint("spring_id_unique", ["spring_id"]);
+
+
+# Created by DBIx::Class::Schema::Loader v0.07042 @ 2015-01-28 23:51:35
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:4i0uSu3rvo/w+QS6TrUixQ
 
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration

@@ -115,21 +115,20 @@ __PACKAGE__->belongs_to(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07042 @ 2015-01-27 23:47:30
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:Dwn8DpGsds4eeX1oVpKmeQ
-
-use Mojo::JSON qw(encode_json);
+# Created by DBIx::Class::Schema::Loader v0.07042 @ 2015-01-28 23:51:35
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:FeT0G539nagRHGbYVcicSQ
 
 sub TO_JSON {
     my $self = shift;
     my $return = {
+        hqID => $self->id,
         name => $self->ingame_name,
         health => $self->health,
         experience => $self->experience,
     };
     $return->{ammo} = $self->ammo if defined $self->ammo;
 
-    return encode_json $return;
+    return $return;
 }
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
 1;

@@ -16,7 +16,7 @@ BEGIN TRANSACTION;
 
     CREATE TABLE IF NOT EXISTS game (
         id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
-        spring_id TEXT NOT NULL,
+        spring_id TEXT NOT NULL UNIQUE,
         start_time INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
         end_time INTEGER
     );
@@ -24,6 +24,14 @@ BEGIN TRANSACTION;
     CREATE TABLE IF NOT EXISTS bank_account (
         player_id INTEGER NOT NULL PRIMARY KEY,
         amount INTEGER NOT NULL DEFAULT 0,
+        FOREIGN KEY(player_id) REFERENCES player(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS player_key (
+        player_id INTEGER NOT NULL PRIMARY KEY,
+        key TEXT NOT NULL UNIQUE,
+        created INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+        expired INTEGER NOT NULL DEFAULT 0,
         FOREIGN KEY(player_id) REFERENCES player(id)
     );
 

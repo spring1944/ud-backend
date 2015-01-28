@@ -98,6 +98,21 @@ __PACKAGE__->might_have(
   { cascade_copy => 0, cascade_delete => 0 },
 );
 
+=head2 player_key
+
+Type: might_have
+
+Related object: L<Zombies::Schema::Result::PlayerKey>
+
+=cut
+
+__PACKAGE__->might_have(
+  "player_key",
+  "Zombies::Schema::Result::PlayerKey",
+  { "foreign.player_id" => "self.id" },
+  { cascade_copy => 0, cascade_delete => 0 },
+);
+
 =head2 units
 
 Type: has_many
@@ -114,20 +129,21 @@ __PACKAGE__->has_many(
 );
 
 
-# Created by DBIx::Class::Schema::Loader v0.07042 @ 2015-01-27 23:47:30
-# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:CcdmrH5FfvRP5F8A5yCv8g
-
-use Mojo::JSON qw(encode_json);
+# Created by DBIx::Class::Schema::Loader v0.07042 @ 2015-01-28 23:48:06
+# DO NOT MODIFY THIS OR ANYTHING ABOVE! md5sum:lTRDdjGzEH84IxFoSImsLA
 
 sub TO_JSON {
     my $self = shift;
     my $return = {
-        name => $self->ingame_name,
-        units => $self->units,
-        money => $self->bank_account->amount,
+        name => $self->handle,
+        units => [$self->units],
     };
 
-    return encode_json $return;
+    if ($self->bank_account) {
+        $return->{money} = $self->bank_account->amount;
+    }
+
+    return $return;
 }
 
 # You can replace this text with custom code or comments, and it will be preserved on regeneration
