@@ -28,5 +28,7 @@ CREATE TABLE unitdef (
     name TEXT UNIQUE NOT NULL,
     side side NOT NULL,
     description TEXT,
+    health INTEGER NOT NULL,
+    ammo INTEGER,
     cost INTEGER NOT NULL
 );

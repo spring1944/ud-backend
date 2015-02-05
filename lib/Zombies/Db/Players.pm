@@ -12,6 +12,9 @@ use Data::Dumper qw(Dumper);
 has logger => sub { Zombies::Logger::logger() };
 has pg => sub { Zombies::Db::handle() };
 
+use constant STARTING_MONEY => 100_000;
+use constant SELL_PENALTY => 0.05;
+
 sub find_or_create($self, $name, $cb) {
     $self->find($name => sub ($player, $err = undef) {
         if ($player) {
@@ -21,7 +24,7 @@ sub find_or_create($self, $name, $cb) {
             if ($player) {
                 $self->find($name, $cb);
             } else {
-                # player didn't exist for the 'find' but appeared before the 'create'. 
+                # player didn't exist for the 'find' but appeared before the 'create'.
                 # just run this again and it'll work.
                 $cb->(undef, "try_again");
             }
@@ -30,8 +33,8 @@ sub find_or_create($self, $name, $cb) {
 }
 
 sub create ($self, $name) {
-    my @stuff = $self->pg->db->query('INSERT INTO player (name) VALUES (?)', $name);
-    return @stuff;
+    my $result = $self->pg->db->query("INSERT INTO player (name, bank) VALUES (?, ?)", $name, encode_json({ amount => STARTING_MONEY}));
+    return !!$result;
 }
 
 sub find ($self, $player_name, $cb) {
@@ -55,7 +58,8 @@ sub find ($self, $player_name, $cb) {
         },
         sub ($, $, $results ) {
             if ($results->rows) {
-                $cb->($results->expand->hash);
+                my $foo = $results->expand->hash;
+                $cb->($foo);
             } else {
                 $cb->(undef);
             }
@@ -79,11 +83,16 @@ sub bank_transaction($self, $player_name, $transaction, $cb) {
                 my $bank = $results->expand->hash->{bank} // {};
                 my $sql = 'UPDATE player SET bank = ? WHERE name = ?';
                 $bank->{amount} += $transaction->{amount};
+                $delay->data(cash => $bank->{amount});
                 $self->pg->db->query($sql, encode_json($bank), $player_name, $delay->begin);
             }
         },
-        sub ($, $, $results) {
-            $cb->(!!$results->rows);
+        sub ($delay, $, $results) {
+            if (!!$results->rows) {
+                $cb->($delay->data('cash'));
+            } else {
+                $cb->(undef);
+            }
         },
     )->catch(sub ($, $err) {
         $self->logger->error("problem while applying bank transaction (" . encode_json($transaction) . ") for $player_name: $err");
@@ -93,8 +102,9 @@ sub bank_transaction($self, $player_name, $transaction, $cb) {
 
 sub start_game ($self, $game_id, $players, $cb) {
     my @players = $players->@*;
-    # hack hack hack. 
-    my $bind_targets = substr '?, ' x @players, 0, -2; 
+    # hack hack hack.
+    my $bind_targets = substr '?, ' x @players, 0, -2;
+    # check out units
     my $sql = "UPDATE unit SET ingame = ? WHERE owner IN ($bind_targets)";
     my @params = ($game_id, @players);
     $self->pg->db->query($sql, @params, sub ($, $err, $results) {
@@ -102,22 +112,89 @@ sub start_game ($self, $game_id, $players, $cb) {
     });
 }
 
-sub buy_unit($self, $player_name, $unitdef, $cb) {
-    # TODO
-    Mojo::IOLoop->delay(
+sub add_unit($self, $player_name, $unit, $cb) {
+    $self->pg->db->query('INSERT INTO unit (owner, stats) VALUES (?, ?)', $player_name, encode_json($unit), $cb);
+}
+
+sub buy_unit($self, $player_name, $unit_name, $cb) {
+    my $delay = Mojo::IOLoop->delay(
         sub ($delay) {
-
+            $self->pg->db->query('SELECT bank from player where name = ?', $player_name, $delay->begin);
         },
-
         sub ($delay, $, $results) {
-
+            my $bank = $results->expand->hash->{bank};
+            if ($bank) {
+                $delay->data(cash => $bank->{amount});
+                my $sql = 'SELECT name, cost, health, ammo FROM unitdef WHERE name = ?';
+                $self->pg->db->query($sql, $unit_name, $delay->begin);
+            } else {
+                $cb->(undef, undef);
+            }
+        },
+        sub ($delay, $, $result) {
+            my $unit = $result->expand->hash;
+            my $cost = $unit->{cost};
+            my $unit_stats = { $unit->%{qw(health ammo name)}, experience => 0 };
+            my $cash = $delay->data('cash');
+            if ($cost and $cash > $cost) {
+                $self->bank_transaction($player_name, { amount => -1 * $cost }, $delay->begin);
+                $delay->data(cash => $cash - $cost);
+                $self->add_unit($player_name, $unit_stats, $delay->begin);
+            } else {
+                $cb->(undef, undef);
+            }
+        },
+        sub ($delay, $, $results) {
+            $cb->(1, $delay->data('cash'));
         }
-    )->catch(sub { 
-
+    )->catch(sub ($, $err) {
+        $self->logger->error("problem while buying unit: $player_name, $unit_name $err");
+        $cb->(undef, $err);
     })->wait;
-    #my $sql = 'INSERT INTO unit (owner, stats) VALUES (?, ?)';
-    #my $results = $self->pg->db->query($sql, $player_name, encode_json $unit);
-    #$cb->($results);
+}
+
+sub sell_unit($self, $player_name, $unit_id, $cb) {
+    my $delay = Mojo::IOLoop->delay(
+        sub ($delay) {
+            my $sql = "
+                SELECT
+                    stats as unit,
+                    health as max_health,
+                    cost
+                FROM
+                    unit
+                JOIN
+                    unitdef
+                ON
+                    unit.stats::json->>'name' = unitdef.name
+                WHERE id = ? and owner = ?";
+            $self->pg->db->query($sql, $unit_id, $player_name, $delay->begin);
+        },
+        sub ($delay, $, $result) {
+            my $data = $result->expand->hash;
+            my $unit = $data->{unit};
+            if ($unit) {
+                my $def = {$data->%{qw(max_health cost)}};
+                my $percent_health_left = $unit->{health} / $def->{max_health};
+                my $worth = $percent_health_left * $def->{cost} * (1 - SELL_PENALTY);
+                # begin(0) means 'include the first arg given to the callback'
+                $self->bank_transaction($player_name, { amount => $worth }, $delay->begin(0));
+                $self->pg->db->query('DELETE FROM unit where id = ? and owner = ?', $unit_id, $player_name);
+            } else {
+                $cb->(undef, undef);
+            }
+        },
+        sub ($delay, $balance) {
+            $cb->(1, $balance);
+        }
+    )->catch(sub ($, $err) {
+        $self->logger->error("problem while selling unit $unit_id ($player_name): $err");
+        $cb->(undef, undef, $err);
+    })->wait;
+}
+
+sub repair_unit($self, $player_name, $unit, $cb) {
+
 }
 
 sub check_in_unit($self, $player_name, $unit, $cb) {
@@ -128,6 +205,5 @@ sub check_in_unit($self, $player_name, $unit, $cb) {
         $cb->(!!$results);
     });
 }
-
 
 1;
