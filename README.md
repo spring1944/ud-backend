@@ -14,5 +14,3 @@ units/spending the money you win in games.
 * provide an endpoint for the SPADS plugin to query about a player's army
     status (ie, should the game be prevented from starting because a player has
     a bunch of money, but no units)
-* switch out DBIC/sqlite for Mojo::Pg/postgresql for maximum async goodness (plus
-    validated JSON fields!).
