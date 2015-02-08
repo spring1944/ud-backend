@@ -103,7 +103,7 @@ sub sell($self, $player_name, $unit_id, $cb) {
 sub check_in($self, $player_name, $unit, $cb) {
     my $sql = 'UPDATE unit SET stats = ?, ingame = NULL WHERE id = ? AND owner = ?';
     my $to_store = { $unit->%{qw(ammo name health experience)} };
-    my @params = (encode_json($to_store), $unit->{id}, $player_name);
+    my @params = (encode_json($to_store), $unit->{hq_id}, $player_name);
     my $delay = Mojo::IOLoop->delay(
         sub ($delay) {
             $self->pg->db->query($sql, @params => $delay->begin);

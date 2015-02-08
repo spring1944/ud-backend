@@ -41,7 +41,7 @@ sub find ($self, $player_name, $cb) {
         SELECT
             id,
             name,
-            bank,
+            bank::json->'amount' as money,
             (SELECT array_to_json(array_agg( row_to_json(t)))
                 FROM ( SELECT id, stats from unit WHERE owner = ?) t) AS units
         FROM
@@ -58,6 +58,7 @@ sub find ($self, $player_name, $cb) {
             die { msg => "no such player", sev => 0 } if !$results->rows;
 
             my $player_account = $results->expand->hash;
+            $player_account->{units} //= [];
             $cb->(undef, $player_account);
         }
     )->catch(sub ($, $err) {
