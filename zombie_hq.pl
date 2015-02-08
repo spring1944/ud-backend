@@ -59,6 +59,7 @@ post '/games/:game_id/start' => sub ($c) {
 
 post '/games/:game_id/end' => sub ($c) {
     my $game_id = $c->param('game_id');
+    $c->render(json => { success => 1 });
 };
 
 post '/:player_name/surviving_unit' => sub ($c) {
