@@ -1,5 +1,6 @@
 #!/usr/bin/env perl
 use Mojolicious::Lite;
+use Mojo::JSON qw(encode_json);
 use 5.20.1;
 use lib 'lib';
 use experimental qw(signatures postderef);
@@ -7,12 +8,30 @@ use Data::Dumper qw(Dumper);
 use Zombies::Db::Players;
 use Zombies::Db::Units;
 use Zombies::Db::Games;
+use Zombies::Db::UnitDefs;
 plugin 'basic_auth';
 
 my $players = Zombies::Db::Players->new;
 my $units = Zombies::Db::Units->new;
 my $games = Zombies::Db::Games->new;
+my $unitdefs = Zombies::Db::UnitDefs->new;
 
+get '/hq/:player_name' => sub ($c) {
+    my $player_name = $c->param('player_name');
+    $players->find_or_create($player_name => sub ($err, $player = undef) {
+        if ($err) {
+            $c->render(text => "blarg error. talk to admin", status => 500);
+        } else {
+            $c->render(
+                template => 'index',
+                player => encode_json($player),
+                unitdefs => $unitdefs->get(1)
+            );
+        }
+    });
+};
+
+#TODO: authentication/one time/time limited random URLs for specific players
 get '/:player_name' => sub ($c) {
     my $player_name = $c->param('player_name');
     $players->find_or_create($player_name => sub ($err, $player = undef) {
@@ -22,6 +41,39 @@ get '/:player_name' => sub ($c) {
             $c->render(json => $player);
         }
     });
+};
+
+# buy unit
+post '/:player_name/units/:unitdef' => sub ($c) {
+    my $player_name = $c->param('player_name');
+    my $unitdef = $c->param('unitdef');
+    $units->buy($player_name, $unitdef, sub ($err, $remaining_money = undef) {
+        if (defined $err) {
+            $c->render(json => {error => "$err"});
+        } else {
+            $c->render(json => {balance => $remaining_money});
+        }
+    });
+};
+
+# sell unit
+del '/:player_name/units/:unit_id' => sub ($c) {
+    my $player_name = $c->param('player_name');
+    my $unit_id = $c->param('unit_id');
+    $units->sell($player_name, $unit_id, sub ($err, $new_account_balance = undef) {
+        if (defined $err) {
+            $c->render(json => {error => "$err"});
+        } else {
+            $c->render(json => {balance => $new_account_balance});
+        }
+    });
+};
+
+# here down is for the SPADS plugin only
+under sub ($c) {
+    return 1 if $c->basic_auth('foobar', 'dog', 'cat');
+    $c->render(text => "NO GOOD");
+    return undef;
 };
 
 post '/:player_name/bank' => sub ($c) {
@@ -89,43 +141,4 @@ post '/:player_name/surviving_unit' => sub ($c) {
     });
 };
 
-# buy unit
-post '/:player_name/units/:unitdef' => sub ($c) {
-    my $player_name = $c->param('player_name');
-    my $unitdef = $c->param('unitdef');
-    $units->buy($player_name, $unitdef, sub ($err, $remaining_money = undef) {
-        if (defined $err) {
-            $c->render(json => {error => "$err"});
-        } else {
-            $c->render(json => {balance => $remaining_money});
-        }
-    });
-};
-
-# sell unit
-del '/:player_name/units/:unit_id' => sub ($c) {
-    my $player_name = $c->param('player_name');
-    my $unit_id = $c->param('unit_id');
-    $units->sell($player_name, $unit_id, sub ($err, $new_account_balance = undef) {
-        if (defined $err) {
-            $c->render(json => {error => "$err"});
-        } else {
-            $c->render(json => {balance => $new_account_balance});
-        }
-    });
-};
-
-
 app->start;
-__DATA__
-
-@@ index.html.ep
-% layout 'default';
-% title 'UNDEAD RISING SHOP';
-
-@@ layouts/default.html.ep
-<!DOCTYPE html>
-<html>
-  <head><title><%= title %></title></head>
-  <body><%= content %></body>
-</html>

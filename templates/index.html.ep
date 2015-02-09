@@ -1,0 +1,7 @@
+% layout 'default';
+% title 'UNDEAD RISING SHOP';
+Here you are, BLORG
+<%= $player %>
+<br>
+<%= $unitdefs %>
+
