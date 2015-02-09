@@ -14,20 +14,27 @@ use experimental qw(postderef signatures);
 has pg => sub { Zombies::Db::handle() };
 
 sub find_or_create($self, $name, $cb) {
-    $self->find($name => sub ($err, $player = undef) {
-        if ($player) {
-            $cb->(undef, $player);
-        } else {
-            $player = $self->create($name);
+    my $delay = Mojo::IOLoop->delay(
+        sub ($delay) {
+            $self->find($name => $delay->begin(0));
+        },
+        sub ($delay, $err, $player = undef) {
             if ($player) {
-                $self->find($name, $cb);
+                $cb->(undef, $player);
             } else {
-                # player didn't exist for the 'find' but appeared before the 'create'.
-                # just run this again and it'll work.
-                $cb->("try_again");
+                $player = $self->create($name);
+                if ($player) {
+                    $self->find($name, $cb);
+                } else {
+                    # player didn't exist for the 'find' but appeared before the 'create'.
+                    # just run this again and it'll work.
+                    die "try again";
+                }
             }
         }
-    });
+    )->catch(sub ($, $err) {
+        error("find or create: $name", $err, $cb);
+    })->wait;
 }
 
 sub create ($self, $name) {
