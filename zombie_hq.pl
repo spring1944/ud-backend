@@ -40,6 +40,21 @@ post '/:player_name/bank' => sub ($c) {
     });
 };
 
+post '/valid_teams' => sub ($c) {
+    my $lobby_players = $c->req->json;
+    $players->check_teams($lobby_players, sub ($err, $result = undef) {
+        if ($err) {
+            $c->render(json => { msg => "blarg error: $err. talk to admin" } , status => 500);
+        } else {
+            if ($result->{ok}) {
+                $c->render(json => { ok => 1 });
+            } else {
+                $c->render(json => { reason_for_not_starting => $result->{msg} });
+            }
+        }
+    });
+};
+
 post '/games/:game_id/start' => sub ($c) {
     my $game_id = $c->param('game_id');
     my @player_names;

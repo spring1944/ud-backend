@@ -89,4 +89,64 @@ sub bank_transaction($self, $player_name, $transaction, $cb) {
     })->wait;
 }
 
+# TODO: probably move the actual messages to the spads plugin, and
+# let the plugin decide how to render them (single message or multiple
+# messages, etc.)
+sub check_teams($self, $lobby_players, $cb) {
+    my @names = keys $lobby_players->%*;
+    my $delay = Mojo::IOLoop->delay(
+        sub ($delay) {
+            for my $player (@names) {
+                # the 0 says "don't chop off the first argument from the
+                # callback". we do this because the thing we're calling already
+                # catches the 'die', so errors could go noticed if we chop like
+                # that
+                $self->find_or_create($player, $delay->begin(0));
+            }
+        },
+        # weeee, delays are awesome!
+        #
+        # delays call the next sub with the delay, followed by
+        # each of the arguments passed to each callback in series
+        #
+        # so with two players for find_or_create (which returns $err, $player)
+        # the signature of this sub is ($delay, $err1, $player1, $err2, $player2 ... $errN, $playerN)
+        #
+        # the order is the same as the order the calls were made in (see the
+        # loop in above sub)
+        sub ($delay, @results) {
+            my %players_without_units;
+            my %teams;
+            for my $player_name (@names) {
+                my ($err, $player) = (shift @results, shift @results);
+
+                die $err if $err;
+
+                my $team_id = $lobby_players->{$player_name}->{battleStatus}->{team};
+                $players_without_units{$player_name} = 1 if not $player->{units}->[0];
+                $teams{$team_id}++;
+            }
+
+            my $team_count = scalar keys %teams;
+            my $players_without_units_count = scalar keys %players_without_units;
+
+            my $reason;
+            if ($team_count != 3) {
+                $reason = "there are $team_count ally teams - but really there should be 3";
+            } elsif ($players_without_units_count > 1) {
+                my $lacking_players = join ', ', keys %players_without_units;
+                $reason = "$players_without_units_count players lack units: $lacking_players. go buy some stuff (!hq), you can't ALL be zombies!";
+            }
+
+            if ($reason) {
+                $cb->(undef, { msg => $reason });
+            } else {
+                $cb->(undef, { ok => 1 });
+            }
+        }
+    )->catch(sub ($, $err) {
+        error("team validation: " . encode_json($lobby_players), $err, $cb);
+    })->wait;
+}
+
 1;
