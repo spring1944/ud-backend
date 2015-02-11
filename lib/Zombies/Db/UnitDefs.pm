@@ -1,7 +1,7 @@
 package Zombies::Db::UnitDefs;
 use Mojo::Base -base;
 use Zombies::Db;
-use Zombies::Logger;
+use Zombies::Logger qw(logger);
 use Mojo::JSON qw(encode_json decode_json);
 use Mojo::IOLoop;
 use 5.20.1;
@@ -11,8 +11,14 @@ use Data::Dumper qw(Dumper);
 my $units_json;
 my $units;
 
-sub get ($self, $raw = 0) {
-    return $units_json if $raw;
+sub get ($self, $side = undef) {
+    if ($side) {
+        if (not defined $units->{$side}) {
+            logger()->error("argh! $side is not a side in the unitdefs blob");
+            return;
+        }
+        return $units->{$side};
+    }
     return $units;
 }
 

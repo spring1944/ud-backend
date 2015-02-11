@@ -66,6 +66,12 @@ sub find ($self, $player_name, $cb) {
 
             my $player_account = $results->expand->hash;
             $player_account->{units} //= [];
+            my $side;
+            my $unit = $player_account->{units}->[0];
+            if ($unit) {
+                $side = substr $unit->{stats}->{name}, 0, 2;
+            }
+            $player_account->{side} = $side;
             $cb->(undef, $player_account);
         }
     )->catch(sub ($, $err) {

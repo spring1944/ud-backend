@@ -16,6 +16,15 @@ my $units = Zombies::Db::Units->new;
 my $games = Zombies::Db::Games->new;
 my $unitdefs = Zombies::Db::UnitDefs->new;
 
+sub side_units_by_cost($side) {
+    my $defs = $unitdefs->get($side);
+    my @sorted_units = sort {
+        $a->{cost} <=> $b->{cost}
+    } $defs->@*;
+
+    return \@sorted_units;
+}
+
 get '/hq/:player_name' => sub ($c) {
     my $player_name = $c->param('player_name');
     $players->find_or_create($player_name => sub ($err, $player = undef) {
@@ -24,21 +33,9 @@ get '/hq/:player_name' => sub ($c) {
         } else {
             $c->render(
                 template => 'index',
-                player => encode_json($player),
-                unitdefs => $unitdefs->get(1)
+                player => $player,
+                units => side_units_by_cost($player->{side})
             );
-        }
-    });
-};
-
-#TODO: authentication/one time/time limited random URLs for specific players
-get '/:player_name' => sub ($c) {
-    my $player_name = $c->param('player_name');
-    $players->find_or_create($player_name => sub ($err, $player = undef) {
-        if ($err) {
-            $c->render(text => "blarg error. talk to admin", status => 500);
-        } else {
-            $c->render(json => $player);
         }
     });
 };
@@ -74,6 +71,18 @@ under sub ($c) {
     return 1 if $c->basic_auth('foobar', 'dog', 'cat');
     $c->render(text => "NO GOOD");
     return undef;
+};
+
+#TODO: authentication/one time/time limited random URLs for specific players
+get '/:player_name' => sub ($c) {
+    my $player_name = $c->param('player_name');
+    $players->find_or_create($player_name => sub ($err, $player = undef) {
+        if ($err) {
+            $c->render(text => "blarg error. talk to admin", status => 500);
+        } else {
+            $c->render(json => $player);
+        }
+    });
 };
 
 post '/:player_name/bank' => sub ($c) {

@@ -1,5 +1,13 @@
 <!DOCTYPE html>
 <html>
-  <head><title><%= title %></title></head>
-  <body><%= content %></body>
+  <head>
+      <title><%= title %></title>
+%=      stylesheet '//maxcdn.bootstrapcdn.com/bootstrap/3.3.2/css/bootstrap.min.css'
+  </head>
+  <body><%= content %>
+
+%= javascript 'https://ajax.googleapis.com/ajax/libs/jquery/2.1.3/jquery.min.js'
+%= javascript '//maxcdn.bootstrapcdn.com/bootstrap/3.3.2/js/bootstrap.min.js'
+
+  </body>
 </html>
