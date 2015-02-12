@@ -37,6 +37,8 @@ sub buy($self, $player_name, $unit_name, $cb) {
         },
         sub ($delay, $, $result) {
             my $unit = $result->expand->hash;
+            die { msg => "no such unitdef: $unit_name", sev => 0 } if !$unit;
+
             my $cost = $unit->{cost};
             my $unit_stats = { $unit->%{qw(health ammo name)}, experience => 0 };
             my $cash = $delay->data('cash');
