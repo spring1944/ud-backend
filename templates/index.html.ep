@@ -1,31 +1,46 @@
 % layout 'default';
 % title 'UNDEAD RISING SHOP';
 
-<h3> Current Units </h3>
-<table class="table table-striped table-hover">
-    <thead>
-        <tr>
-            <th> Name </th>
-            <th> Health </th>
-            <th> Ammo </th>
-            <th> Experience </th>
-        </tr>
-    </thead>
-    <tbody>
-% for my $unit (@{$player->{units}}) {
-    <tr>
-        <td><%= $unit->{stats}->{name} %></td>
-        <td><%= $unit->{stats}->{health} %></td>
-        <td><%= $unit->{stats}->{ammo} %></td>
-        <td><%= $unit->{stats}->{experience} %></td>
-    </tr>
-%}
-    </tbody>
-</table>
+<div class="container-fluid">
+    <div class="row text-center">
+        <div class="col-md-3">
+            <h2><%= $player->{name} %></h2>
+        </div>
+        <div class="col-md-9">
+            <h2>Cash on hand: <span id="cash"><%= $player->{money} %></span></h2>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-md-3">
+            <h3> Current Units </h3>
+            <table class="table table-striped table-hover">
+                <thead>
+                    <tr>
+                        <th> Name </th>
+                        <th> Health </th>
+                        <th> Ammo </th>
+                        <th> Experience </th>
+                    </tr>
+                </thead>
+                <tbody>
+            % for my $unit (@{$player->{units}}) {
+                <tr>
+                    <td><%= $unit->{stats}->{name} %></td>
+                    <td><%= $unit->{stats}->{health} %></td>
+                    <td><%= $unit->{stats}->{ammo} %></td>
+                    <td><%= $unit->{stats}->{experience} %></td>
+                </tr>
+            %}
+                </tbody>
+            </table>
+        </div>
+        <div class="col-md-9">
 
-<h3> Shop </h3>
+            <h3> Shop </h3>
 
-% for my $unitdef (@{$units}) {
-<div> <%== dumper($unitdef); %></div>
-
-%}
+            % for my $unitdef (@{$units}) {
+            <img id="<%= $unitdef->{name} %>" src="/img/<%= $unitdef->{unitpic} %>"></img>
+            %}
+        </div>
+    </div>
+</div>

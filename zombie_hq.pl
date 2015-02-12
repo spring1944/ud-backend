@@ -22,6 +22,14 @@ sub side_units_by_cost($side) {
         $a->{cost} <=> $b->{cost}
     } $defs->@*;
 
+    # hack hack hack
+    for my $unit (@sorted_units) {
+        $unit->{unitpic} = lc($unit->{unitpic});
+        if (!-f "public/img/$unit->{unitpic}") {
+            $unit->{unitpic} =~ s/\.png$/_stationary.png/g;
+        }
+    }
+
     return \@sorted_units;
 }
 
