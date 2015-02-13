@@ -35,12 +35,69 @@
             </table>
         </div>
         <div class="col-md-9">
+            <h3 class="text-center"> Shop </h3>
+            <div class="col-md-7">
+                % for my $unitdef (@{$units}) {
+                <span class="unitdef" data-unitdef="<%= $unitdef->{name} %>">
+                    <img src="/img/<%= $unitdef->{unitpic} %>"></img>
+                </span>
+                %}
+            </div>
+            <div class="col-md-5">
+                <div class="unit-stats instructions">
+                    Click a unit to get more information/buy!
+                </div>
+                % for my $unitdef (@{$units}) {
+                % my $has_armor = defined $unitdef->{armor_front};
+                <div class="unit-stats hidden <%= $unitdef->{name} %> text-center">
+                    <table class="table table-striped table-hover text-left">
+                        <tbody>
+                            <tr>
+                                <th> Name </th>
+                                <td><%= $unitdef->{name} %></td>
+                            </tr>
+                            <tr>
+                                <th> Description </th>
+                                <td><%= $unitdef->{description} %></td>
+                            </tr>
+                            <tr>
+                                <th> Cost </th>
+                                <td><%= $unitdef->{cost} %> command</td>
+                            </tr>
+                            % if ($has_armor) {
+                            <tr>
+                                <th> Armor </th>
+                                <td>
+                                    <table class="table">
+                                        <tbody>
+                                            <tr>
+                                                <th> Front </th>
+                                                <td><%= $unitdef->{armor_front} %>mm</td>
+                                            </tr>
+                                            <tr>
+                                                <th> Rear </th>
+                                                <td><%= $unitdef->{armor_rear} %>mm</td>
+                                            </tr>
+                                            <tr>
+                                                <th> Side </th>
+                                                <td><%= $unitdef->{armor_side} %>mm</td>
+                                            </tr>
+                                            <tr>
+                                                <th> Top </th>
+                                                <td><%= $unitdef->{armor_top} %>mm</td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </td>
+                            </tr>
+                            %}
+                        </tbody>
+                    </table>
+                    <button type="button" class="btn btn-lg btn-success" data-unitdef="<%= $unitdef->{name} %>">Buy!</button>
+                </div>
+%           }
+            </div>
 
-            <h3> Shop </h3>
-
-            % for my $unitdef (@{$units}) {
-            <img id="<%= $unitdef->{name} %>" src="/img/<%= $unitdef->{unitpic} %>"></img>
-            %}
         </div>
     </div>
 </div>
