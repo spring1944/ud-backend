@@ -69,7 +69,9 @@ sub find ($self, $player_name, $cb) {
             my $side;
             my $unit = $player_account->{units}->[0];
             if ($unit) {
-                $side = substr $unit->{stats}->{name}, 0, 2;
+                # hack hack hack
+                $side = substr $unit->{stats}->{name}, 0, 3;
+                $side = 'us' if $side =~ /^us/;
             }
             $player_account->{side} = $side;
             $cb->(undef, $player_account);
