@@ -10,7 +10,10 @@ units/spending the money you win in games.
 
 ###TODO
 
-* implement the first web shop draft (and then remove shop mode from the game)
-* provide an endpoint for the SPADS plugin to query about a player's army
-    status (ie, should the game be prevented from starting because a player has
-    a bunch of money, but no units)
+* add unitdef schema support for platoon units (i.e., buy one unit but get
+    a bunch of different ones added to your army)
+* add side picking for players who don't yet have a faction.
+* add side reset option.
+* gray out shop options/hide buy button for units you can't afford
+* add support for repair/rearm.
+* make the frontend not a gross pile of jquery and tables.
