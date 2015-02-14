@@ -18,8 +18,11 @@ has pg => sub { Zombies::Db::handle() };
 
 my $players = Zombies::Db::Players->new;
 
-sub add($self, $player_name, $unit, $cb) {
-    $self->pg->db->query('INSERT INTO unit (owner, stats) VALUES (?, ?)', $player_name, encode_json($unit), $cb);
+sub add_units($self, $player_name, $units, $cb) {
+    my $bind_targets = join ', ', ('(?, ?)') x scalar $units->@*;
+    my @units = map { { $_->%{qw(ammo name health experience)} } } $units->@*;
+    my @params = map { ($player_name, encode_json($_)) } @units;
+    $self->pg->db->query("INSERT INTO unit (owner, stats) VALUES $bind_targets", @params, $cb);
 }
 
 sub buy($self, $player_name, $unit_name, $cb) {
@@ -32,31 +35,58 @@ sub buy($self, $player_name, $unit_name, $cb) {
             die { msg => "no_such_player", sev => 0 } if !$bank;
 
             $delay->data(cash => $bank->{amount});
-            my $sql = 'SELECT name, cost, health, ammo FROM unitdef WHERE name = ?';
+            my $sql;
+            # hack hack hack
+            if ($unit_name =~ /_platoon_/) {
+                # a little crazy, but gives us a bunch of nice unit records.
+                $sql = "
+                    SELECT
+                        name,
+                        human_name,
+                        platoon_unitdef.platoon_cost,
+                        health,
+                        ammo,
+                        0 as experience
+                    FROM
+                        (SELECT
+                            jsonb_array_elements_text(squad_members) AS unit_def_name,
+                            cost as platoon_cost
+                        FROM
+                            unitdef
+                        WHERE
+                            name = ?) AS platoon_unitdef
+                    JOIN unitdef ON unitdef.name = platoon_unitdef.unit_def_name
+                ";
+            } else {
+                $sql = 'SELECT name, human_name, cost, health, ammo, 0 as experience FROM unitdef WHERE name = ?';
+            }
+
             $self->pg->db->query($sql, $unit_name, $delay->begin);
         },
-        sub ($delay, $, $result) {
-            my $unitdef = $result->expand->hash;
-            die { msg => "no such unitdef: $unit_name", sev => 0 } if !$unitdef;
+        sub ($delay, $, $results) {
+            my $units = $results->hashes->to_array;
+            my $count = scalar $units->@*;
+            die { msg => "no such unitdef: $unit_name", sev => 0 } if !$count;
 
-            my $cost = $unitdef->{cost};
-            my $unit_stats = { $unitdef->%{qw(health ammo name)}, experience => 0 };
+            my $cost = $units->[0]->{cost};
+            # cost is undef for platoon units, so use platoon_cost
+            $cost //= $units->[0]->{platoon_cost};
+
             my $cash = $delay->data('cash');
 
             die { msg => "unit has no cost: $unit_name", sev => 1 } if !$cost;
             die { msg => "not enough command", sev => 0 } if $cost > $cash;
 
             $players->bank_transaction($player_name, { amount => -1 * $cost }, $delay->begin);
-            $delay->data(cash => $cash - $cost);
-            $delay->data(unit => $unit_stats);
-            $self->add($player_name, $unit_stats, $delay->begin);
+            $delay->data(units => $units);
+            $self->add_units($player_name, $units, $delay->begin);
         },
         sub ($delay, $remaining_balance, $, $add_unit_results) {
-            my $success = !!$remaining_balance && !!$add_unit_results->rows;
+            my $success = defined $remaining_balance && !!$add_unit_results->rows;
 
             die { msg => "failure to apply bank transaction", sev => 1 } if !$success;
 
-            $cb->(undef, $delay->data('cash'), $delay->data('unit'));
+            $cb->(undef, $remaining_balance, $delay->data('units'));
         }
     )->catch(sub ($, $err) {
         error("buying unit $player_name: $unit_name", $err, $cb);

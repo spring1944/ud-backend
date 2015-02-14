@@ -35,5 +35,6 @@ CREATE TABLE unitdef (
     ammo INTEGER,
     armor JSONB,
     cost INTEGER NOT NULL,
+    squad_members JSONB,
     available_in_shop BOOLEAN NOT NULL DEFAULT 'n'
 );

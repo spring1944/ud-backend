@@ -53,11 +53,11 @@ get '/hq/unitdefs/:side' => sub ($c) {
 post '/:player_name/units/:unitdef' => sub ($c) {
     my $player_name = $c->param('player_name');
     my $unitdef = $c->param('unitdef');
-    $units->buy($player_name, $unitdef, sub ($err, $remaining_money = undef, $unit = undef) {
+    $units->buy($player_name, $unitdef, sub ($err, $remaining_money = undef, $units = []) {
         if (defined $err) {
             $c->render(json => {error => "$err"});
         } else {
-            $c->render(json => {balance => $remaining_money, unit => $unit});
+            $c->render(json => {balance => $remaining_money, units => $units});
         }
     });
 };

@@ -26,15 +26,18 @@ $(document).on('ready', function () {
                     }
                 } else {
                     var money = data.balance;
-                    var unit = data.unit;
-                    unit.ammo = unit.ammo || '';
+                    var units = data.units;
+                    units.forEach(function (unit, i) {
+                        unit.ammo = unit.ammo || '';
+                        var newUnitHtml = '<tr>';
+                        newUnitHtml += '<td>' + unit.human_name + '</td>';
+                        newUnitHtml += '<td>' + unit.health + '</td>';
+                        newUnitHtml += '<td>' + unit.ammo + '</td>';
+                        newUnitHtml += '<td>' + unit.experience + '</td>';
+                        $('#army tr:last').after(newUnitHtml);
+                    });
+
                     $('#cash').text(money);
-                    var newUnitHtml = '<tr>';
-                    newUnitHtml += '<td>' + unit.name + '</td>';
-                    newUnitHtml += '<td>' + unit.health + '</td>';
-                    newUnitHtml += '<td>' + unit.ammo + '</td>';
-                    newUnitHtml += '<td>' + unit.experience + '</td>';
-                    $('#army tr:last').after(newUnitHtml);
                 }
             }
         });
