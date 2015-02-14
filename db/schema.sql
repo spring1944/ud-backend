@@ -15,6 +15,7 @@ CREATE TABLE unit (
 
 CREATE TABLE game (
     id SERIAL,
+    spring_id TEXT NOT NULL,
     start_time TIMESTAMP,
     end_time TIMESTAMP,
     map TEXT NOT NULL,
@@ -26,9 +27,13 @@ CREATE TYPE side AS ENUM('gbr', 'ger', 'ita', 'jpn', 'rus', 'us');
 
 CREATE TABLE unitdef (
     name TEXT UNIQUE NOT NULL,
+    human_name TEXT NOT NULL,
     side side NOT NULL,
+    unitpic TEXT NOT NULL,
     description TEXT,
     health INTEGER NOT NULL,
     ammo INTEGER,
-    cost INTEGER NOT NULL
+    armor JSONB,
+    cost INTEGER NOT NULL,
+    available_in_shop BOOLEAN NOT NULL DEFAULT 'n'
 );
