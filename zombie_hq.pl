@@ -16,34 +16,35 @@ my $units = Zombies::Db::Units->new;
 my $games = Zombies::Db::Games->new;
 my $unitdefs = Zombies::Db::UnitDefs->new;
 
-sub side_units_by_cost($side) {
-    my $defs = $unitdefs->get($side);
-    my @sorted_units = sort {
-        $a->{cost} <=> $b->{cost}
-    } $defs->@*;
-
-    # hack hack hack
-    for my $unit (@sorted_units) {
-        $unit->{unitpic} = lc($unit->{unitpic});
-        if (!-f "public/img/$unit->{unitpic}") {
-            $unit->{unitpic} =~ s/\.png$/_stationary.png/g;
-        }
-    }
-
-    return \@sorted_units;
-}
-
 get '/hq/:player_name' => sub ($c) {
     my $player_name = $c->param('player_name');
-    $players->find_or_create($player_name => sub ($err, $player = undef) {
-        if ($err) {
-            $c->render(text => "blarg error. talk to admin", status => 500);
-        } else {
+    my $delay = Mojo::IOLoop->delay(
+        sub ($delay) {
+            $players->find_or_create($player_name => $delay->begin);
+        },
+        sub ($delay, $player) {
+            $delay->data(player => $player);
+            $unitdefs->get_side_units($player->{side} => $delay->begin(0));
+        },
+        sub ($delay, $err, $units) {
             $c->render(
                 template => 'index',
-                player => $player,
-                units => side_units_by_cost($player->{side})
+                unitdefs => $units,
+                player => $delay->data('player')
             );
+        }
+    )->catch(sub ($, $err) {
+        $c->render(text => "blarg error: $err", status => 500);
+    })->wait;
+};
+
+get '/hq/unitdefs/:side' => sub ($c) {
+    my $side = $c->param('side');
+    $unitdefs->get_side_units($side => sub ($err, $units = undef) {
+        if (defined $err) {
+            $c->render(json => {error => "$err"});
+        } else {
+            $c->render(json => {units => $units});
         }
     });
 };
@@ -52,11 +53,11 @@ get '/hq/:player_name' => sub ($c) {
 post '/:player_name/units/:unitdef' => sub ($c) {
     my $player_name = $c->param('player_name');
     my $unitdef = $c->param('unitdef');
-    $units->buy($player_name, $unitdef, sub ($err, $remaining_money = undef) {
+    $units->buy($player_name, $unitdef, sub ($err, $remaining_money = undef, $unit = undef) {
         if (defined $err) {
             $c->render(json => {error => "$err"});
         } else {
-            $c->render(json => {balance => $remaining_money});
+            $c->render(json => {balance => $remaining_money, unit => $unit});
         }
     });
 };

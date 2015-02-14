@@ -36,11 +36,11 @@ sub buy($self, $player_name, $unit_name, $cb) {
             $self->pg->db->query($sql, $unit_name, $delay->begin);
         },
         sub ($delay, $, $result) {
-            my $unit = $result->expand->hash;
-            die { msg => "no such unitdef: $unit_name", sev => 0 } if !$unit;
+            my $unitdef = $result->expand->hash;
+            die { msg => "no such unitdef: $unit_name", sev => 0 } if !$unitdef;
 
-            my $cost = $unit->{cost};
-            my $unit_stats = { $unit->%{qw(health ammo name)}, experience => 0 };
+            my $cost = $unitdef->{cost};
+            my $unit_stats = { $unitdef->%{qw(health ammo name)}, experience => 0 };
             my $cash = $delay->data('cash');
 
             die { msg => "unit has no cost: $unit_name", sev => 1 } if !$cost;
@@ -48,6 +48,7 @@ sub buy($self, $player_name, $unit_name, $cb) {
 
             $players->bank_transaction($player_name, { amount => -1 * $cost }, $delay->begin);
             $delay->data(cash => $cash - $cost);
+            $delay->data(unit => $unit_stats);
             $self->add($player_name, $unit_stats, $delay->begin);
         },
         sub ($delay, $remaining_balance, $, $add_unit_results) {
@@ -55,7 +56,7 @@ sub buy($self, $player_name, $unit_name, $cb) {
 
             die { msg => "failure to apply bank transaction", sev => 1 } if !$success;
 
-            $cb->(undef, $delay->data('cash'));
+            $cb->(undef, $delay->data('cash'), $delay->data('unit'));
         }
     )->catch(sub ($, $err) {
         error("buying unit $player_name: $unit_name", $err, $cb);
