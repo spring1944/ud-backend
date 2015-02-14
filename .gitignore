@@ -1,3 +1,4 @@
 *.db
 db/populate_unitdefs.sql
 public/img
+logs/*
