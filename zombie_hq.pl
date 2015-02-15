@@ -148,6 +148,17 @@ get '/:player_name/token' => sub ($c) {
     });
 };
 
+get '/:player_name' => sub ($c) {
+    my $player_name = $c->param('player_name');
+    $players->find_or_create($player_name => sub ($err, $player = undef) {
+        if ($err) {
+            $c->render(text => "blarg error. talk to admin", status => 500);
+        } else {
+            $c->render(json => $player);
+        }
+    });
+};
+
 post '/:player_name/bank' => sub ($c) {
     my $player_name = $c->param('player_name');
     my $transaction = $c->req->json;
@@ -205,6 +216,18 @@ post '/:player_name/surviving_unit' => sub ($c) {
     my $player_name = $c->param('player_name');
     my $player_unit = $c->req->json;
     $units->check_in($player_name, $player_unit, sub ($err, $res = undef) {
+        if (defined $err) {
+            $c->render(json => {error => "$err"});
+        } else {
+            $c->render(json => {success => 1});
+        }
+    });
+};
+
+del '/:player_name/units/:hq_id' => sub ($c) {
+    my $player_name = $c->param('player_name');
+    my $hq_id = $c->param('hq_id');
+    $units->remove($player_name, $hq_id, sub ($err, $res = undef) {
         if (defined $err) {
             $c->render(json => {error => "$err"});
         } else {

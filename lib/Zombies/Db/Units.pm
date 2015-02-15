@@ -150,6 +150,21 @@ sub check_in($self, $player_name, $unit, $cb) {
     })->wait;
 }
 
+sub remove($self, $player_name, $unit_id, $cb) {
+    my $sql = 'DELETE from unit WHERE owner = ? and id = ?';
+    my $delay = Mojo::IOLoop->delay(
+        sub ($delay) {
+            $self->pg->db->query($sql, $player_name, $unit_id, $delay->begin);
+        },
+        sub ($delay, $, $results) {
+            die { msg => "no unit updated", sev => 1} if !$results->rows;
+            $cb->(undef, 1);
+        }
+    )->catch(sub ($, $err) {
+        error("problem while removing unit $unit_id: $err", $err, $cb);
+    })->wait;
+}
+
 sub repair($self, $player_name, $unit, $cb) {
 
 }
