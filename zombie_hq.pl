@@ -9,22 +9,82 @@ use Zombies::Db::Players;
 use Zombies::Db::Units;
 use Zombies::Db::Games;
 use Zombies::Db::UnitDefs;
-plugin 'basic_auth';
 
 my $players = Zombies::Db::Players->new;
 my $units = Zombies::Db::Units->new;
 my $games = Zombies::Db::Games->new;
 my $unitdefs = Zombies::Db::UnitDefs->new;
 
-get '/hq/:player_name' => sub ($c) {
-    my $player_name = $c->param('player_name');
+get '/hq/unitdefs/:side' => sub ($c) {
+    my $side = $c->param('side');
+    $unitdefs->get_side_units($side => sub ($err, $units = undef) {
+        if (defined $err) {
+            $c->render(json => {error => "$err"});
+        } else {
+            $c->render(json => {units => $units});
+        }
+    });
+};
+
+get '/login/:player_name/:access_token' => sub ($c) {
+    my $user = $c->param('player_name');
+    my $given_token = $c->param('access_token');
+    my $stored_token = $players->get_access_token($user);
+    if ($given_token eq $stored_token) {
+        $c->session({player_name => $user, access_token => $stored_token});
+        # expire the cookie after an hour
+        $c->session(expiration => 3600);
+        $c->redirect_to('/hq');
+    } else {
+        $c->render(text => "bad access token for $user. it might have expired: ask the Zombies bot for a new access link with !hq", status => 401);
+    }
+};
+
+under sub ($c) {
+    my $user = $c->session('player_name');
+    my $given_token = $c->session('access_token');
+
+    if ($user) {
+        my $stored_token = $players->get_access_token($user);
+        $c->stash(player => $user);
+        return 1 if $stored_token eq $given_token;
+
+        $c->render(text => "bad access token for $user. it might have expired: ask the Zombies bot for a new access link with !hq", status => 401);
+        return undef;
+    } else {
+        $c->render(text => "no user information in the cookie. make sure you click the link from the Zombie bot in lobby after asking with !hq", status => 402);
+        return undef;
+    }
+};
+
+post '/set_side' => sub ($c) {
+    my $player_name = $c->stash('player');
+    my $side = $c->param('side');
+    $players->set_side($player_name, $side, sub ($err, $success = undef) {
+        if (defined $err) {
+            $c->render(text => "blorg error! $err");
+        } else {
+            $c->redirect_to('/hq');
+        }
+    });
+};
+
+get '/hq' => sub ($c) {
+    my $player_name = $c->stash('player');
     my $delay = Mojo::IOLoop->delay(
         sub ($delay) {
             $players->find_or_create($player_name => $delay->begin);
         },
         sub ($delay, $player) {
             $delay->data(player => $player);
-            $unitdefs->get_side_units($player->{side} => $delay->begin(0));
+            if (not defined $player->{side}) {
+                $c->render(
+                    template => 'pick-a-side',
+                    player => $player
+                );
+            } else {
+                $unitdefs->get_side_units($player->{side} => $delay->begin(0));
+            }
         },
         sub ($delay, $err, $units) {
             $c->render(
@@ -38,20 +98,9 @@ get '/hq/:player_name' => sub ($c) {
     })->wait;
 };
 
-get '/hq/unitdefs/:side' => sub ($c) {
-    my $side = $c->param('side');
-    $unitdefs->get_side_units($side => sub ($err, $units = undef) {
-        if (defined $err) {
-            $c->render(json => {error => "$err"});
-        } else {
-            $c->render(json => {units => $units});
-        }
-    });
-};
-
 # buy unit
-post '/:player_name/units/:unitdef' => sub ($c) {
-    my $player_name = $c->param('player_name');
+post '/units/:unitdef' => sub ($c) {
+    my $player_name = $c->stash('player');
     my $unitdef = $c->param('unitdef');
     $units->buy($player_name, $unitdef, sub ($err, $remaining_money = undef, $units = []) {
         if (defined $err) {
@@ -63,8 +112,8 @@ post '/:player_name/units/:unitdef' => sub ($c) {
 };
 
 # sell unit
-del '/:player_name/units/:unit_id' => sub ($c) {
-    my $player_name = $c->param('player_name');
+del '/units/:unit_id' => sub ($c) {
+    my $player_name = $c->stash('player');
     my $unit_id = $c->param('unit_id');
     $units->sell($player_name, $unit_id, sub ($err, $new_account_balance = undef) {
         if (defined $err) {
@@ -76,20 +125,25 @@ del '/:player_name/units/:unit_id' => sub ($c) {
 };
 
 # here down is for the SPADS plugin only
+# TODO: add some config and don't have creds in code
 under sub ($c) {
-    return 1 if $c->basic_auth('foobar', 'dog', 'cat');
+    my $auth = $c->req->url->to_abs->userinfo || '';
+    my ($user, $given_token) = split ':', $auth, 2;
+
+    return 1 if $user eq 'dog' and $given_token eq 'cat';
     $c->render(text => "NO GOOD");
     return undef;
 };
 
-#TODO: authentication/one time/time limited random URLs for specific players
-get '/:player_name' => sub ($c) {
+get '/:player_name/token' => sub ($c) {
     my $player_name = $c->param('player_name');
     $players->find_or_create($player_name => sub ($err, $player = undef) {
         if ($err) {
-            $c->render(text => "blarg error. talk to admin", status => 500);
+            $c->render(text => "blarg error: $err. talk to admin", status => 500);
         } else {
-            $c->render(json => $player);
+            my $token = $players->generate_access_token($player_name);
+            my $creds = { name => $player_name, token => $token };
+            $c->render(json => $creds);
         }
     });
 };

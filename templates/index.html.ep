@@ -4,7 +4,7 @@
 <div class="container-fluid">
     <div class="row text-center">
         <div class="col-md-3">
-            <h2><span id="player-name"><%= $player->{name} %></span></h2>
+            <h2><span id="player-name"><%= $player->{name} %></span>(<span id="side"><%= $player->{side} // 'no side' %></span>) </h2>
         </div>
         <div class="col-md-9">
             <h2>Cash on hand: <span id="cash"><%= $player->{money} %></span></h2>

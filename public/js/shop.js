@@ -11,7 +11,7 @@ $(document).on('ready', function () {
 
     $('div.unit-stats button').click(function (e) {
         var unitdef = $(this).data('unitdef');
-        var url = '/' + playerName + '/units/' + unitdef;
+        var url = '/units/' + unitdef;
         $.ajax(url, {
             dataType: "json",
             type: "POST",

@@ -5,6 +5,8 @@ use Mojo::Base -base;
 use Mojo::JSON qw(encode_json);
 use Mojo::IOLoop;
 
+use Crypt::GeneratePassword qw(chars);
+
 use Zombies::Db;
 use Zombies::Util qw(error);
 use Zombies::Constants qw(STARTING_MONEY);
@@ -37,6 +39,22 @@ sub find_or_create($self, $name, $cb) {
     })->wait;
 }
 
+sub generate_access_token($self, $name) {
+    my $key = chars(7, 12, ['a' .. 'Z']);
+    my $sql = 'UPDATE player set hq_access_token = ?, hq_access_token_created = NOW() where name = ?';
+    my $result = $self->pg->db->query($sql, $key, $name);
+    return $key if $result;
+}
+
+sub get_access_token($self, $player_name) {
+    say "fetching access token for $player_name";
+    my $sql = "SELECT hq_access_token from player where name = ? AND hq_access_token_created > (current_timestamp - interval '1 hour')";
+    my $result = $self->pg->db->query($sql, $player_name);
+    return '' if !$result->rows;
+    my $creds = shift $result->hashes->to_array->@*;
+    return $creds->{hq_access_token} if $creds;
+}
+
 sub create ($self, $name) {
     my $result = $self->pg->db->query("INSERT INTO player (name, bank) VALUES (?, ?)", $name, encode_json({ amount => STARTING_MONEY}));
     return !!$result;
@@ -48,6 +66,7 @@ sub find ($self, $player_name, $cb) {
         SELECT
             id,
             name,
+            side,
             bank::json->'amount' as money,
             (SELECT array_to_json(array_agg( row_to_json(t)))
                 FROM ( SELECT id, stats from unit WHERE owner = ?) t) AS units
@@ -66,18 +85,26 @@ sub find ($self, $player_name, $cb) {
 
             my $player_account = $results->expand->hash;
             $player_account->{units} //= [];
-            my $side;
-            my $unit = $player_account->{units}->[0];
-            if ($unit) {
-                # hack hack hack
-                $side = substr $unit->{stats}->{name}, 0, 3;
-                $side = 'us' if $side =~ /^us/;
-            }
-            $player_account->{side} = $side;
             $cb->(undef, $player_account);
         }
     )->catch(sub ($, $err) {
         error("trying to find player: $player_name", $err, $cb);
+    })->wait;
+}
+
+sub set_side($self, $player_name, $side, $cb) {
+    my $sql = "UPDATE player set side = ? where name = ?";
+
+    Mojo::IOLoop->delay(
+        sub ($delay) {
+            $self->pg->db->query($sql, $side, $player_name, $delay->begin);
+        },
+        sub ($, $, $results) {
+            die { msg => "no such player", sev => 0 } if !$results->rows;
+            $cb->(undef, $side);
+        }
+    )->catch(sub ($, $err) {
+        error("setting player side: $player_name to $side", $err, $cb);
     })->wait;
 }
 

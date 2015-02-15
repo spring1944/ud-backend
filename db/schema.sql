@@ -1,7 +1,12 @@
+CREATE TYPE side AS ENUM('gbr', 'ger', 'ita', 'jpn', 'rus', 'us');
+
 CREATE TABLE player (
     id SERIAL,
     name TEXT UNIQUE NOT NULL,
     bank JSONB,
+    side side,
+    hq_access_token TEXT,
+    hq_access_token_created TIMESTAMP,
     PRIMARY KEY ("id")
 );
 
@@ -22,8 +27,6 @@ CREATE TABLE game (
     players JSONB,
     PRIMARY KEY ("id")
 );
-
-CREATE TYPE side AS ENUM('gbr', 'ger', 'ita', 'jpn', 'rus', 'us');
 
 CREATE TABLE unitdef (
     name TEXT UNIQUE NOT NULL,
