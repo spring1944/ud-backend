@@ -4,7 +4,6 @@ use Mojo::JSON qw(encode_json);
 use 5.20.1;
 use lib 'lib';
 use experimental qw(signatures postderef);
-use Data::Dumper qw(Dumper);
 use Zombies::Db::Players;
 use Zombies::Db::Units;
 use Zombies::Db::Games;
@@ -177,17 +176,21 @@ post '/:player_name/bank' => sub ($c) {
 
 post '/valid_teams' => sub ($c) {
     my $lobby_players = $c->req->json;
-    $players->check_teams($lobby_players, sub ($err, $result = undef) {
-        if ($err) {
-            $c->render(json => { msg => "blarg error: $err. talk to admin" } , status => 500);
-        } else {
-            if ($result->{ok}) {
-                $c->render(json => { ok => 1 });
+    if (scalar keys $lobby_players->%* == 0) {
+        $c->render(json => { reason_for_not_starting => "no players!" });
+    } else {
+        $players->check_teams($lobby_players, sub ($err, $result = undef) {
+            if ($err) {
+                $c->render(json => { msg => "blarg error: $err. talk to admin" } , status => 500);
             } else {
-                $c->render(json => { reason_for_not_starting => $result->{msg} });
+                if ($result->{ok}) {
+                    $c->render(json => { ok => 1 });
+                } else {
+                    $c->render(json => { reason_for_not_starting => $result->{msg} });
+                }
             }
-        }
-    });
+        });
+    }
 };
 
 post '/games/:game_id/start' => sub ($c) {

@@ -9,7 +9,7 @@ use Crypt::GeneratePassword qw(chars);
 
 use Zombies::Db;
 use Zombies::Util qw(error);
-use Zombies::Constants qw(STARTING_MONEY);
+use Zombies::Constants qw(STARTING_MONEY MIN_ARMY_SIZE);
 
 use experimental qw(postderef signatures);
 
@@ -165,7 +165,7 @@ sub check_teams($self, $lobby_players, $cb) {
                 die $err if $err;
 
                 my $team_id = $lobby_players->{$player_name}->{battleStatus}->{team};
-                $players_without_units{$player_name} = 1 if not $player->{units}->[0];
+                $players_without_units{$player_name} = 1 if scalar $player->{units}->@* < MIN_ARMY_SIZE;
                 $teams{$team_id}++;
             }
 
@@ -177,7 +177,7 @@ sub check_teams($self, $lobby_players, $cb) {
                 $reason = "there are $team_count ally teams - but really there should be 3";
             } elsif ($players_without_units_count > 1) {
                 my $lacking_players = join ', ', keys %players_without_units;
-                $reason = "$players_without_units_count players lack units: $lacking_players. go buy some stuff (!hq), you can't ALL be zombies!";
+                $reason = "$players_without_units_count players have none or very few units: $lacking_players. go buy some stuff (!hq), you can't ALL be zombies!";
             }
 
             if ($reason) {
