@@ -12,7 +12,6 @@ use Zombies::Util qw(error);
 use Zombies::Constants qw(SELL_PENALTY);
 
 use experimental qw(postderef signatures);
-use Data::Dumper qw(Dumper);
 
 has pg => sub { Zombies::Db::handle() };
 
@@ -146,7 +145,7 @@ sub check_in($self, $player_name, $unit, $cb) {
             $cb->(undef, 1);
         }
     )->catch(sub ($, $err) {
-        error("problem while checking in unit $unit->{id}: $err", $err, $cb);
+        error("problem while checking in unit " . encode_json($unit) . ": $err", $err, $cb);
     })->wait;
 }
 

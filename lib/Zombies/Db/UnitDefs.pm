@@ -7,7 +7,6 @@ use Mojo::JSON qw(encode_json decode_json);
 use Mojo::IOLoop;
 use 5.20.1;
 use experimental qw(postderef signatures);
-use Data::Dumper qw(Dumper);
 
 has pg => sub { Zombies::Db::handle() };
 
