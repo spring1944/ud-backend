@@ -12,20 +12,12 @@ You don't have a side yet. Pick one!
         %= radio_button side => 'ger'
     </div>
     <div>
-        %= label_for ita => 'Italy'
-        %= radio_button side => 'ita'
-    </div>
-    <div>
         %= label_for rus => 'Soviet Union'
         %= radio_button side => 'rus'
     </div>
     <div>
         %= label_for us => 'United States'
         %= radio_button side => 'us'
-    </div>
-    <div>
-        %= label_for jpn => 'Japan'
-        %= radio_button side => 'jpn'
     </div>
 %= submit_button
 % end
