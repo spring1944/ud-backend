@@ -14,6 +14,12 @@ my $units = Zombies::Db::Units->new;
 my $games = Zombies::Db::Games->new;
 my $unitdefs = Zombies::Db::UnitDefs->new;
 
+app->config(hypnotoad => {listen => ['http://*:8080']});
+
+get '/' => sub ($c) {
+    $c->render(text => "nothing here. try asking the zombies bot for !hq");
+};
+
 get '/hq/unitdefs/:side' => sub ($c) {
     my $side = $c->param('side');
     $unitdefs->get_side_units($side => sub ($err, $units = undef) {
