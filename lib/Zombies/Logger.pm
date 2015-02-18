@@ -7,6 +7,6 @@ use Mojo::Log;
 use Exporter qw(import);
 our @EXPORT_OK = qw( logger );
 
-sub logger { state $log = Mojo::Log->new(path => 'logs/error.log') }
+sub logger { state $log = Mojo::Log->new(path => 'log/error.log') }
 
 1;
